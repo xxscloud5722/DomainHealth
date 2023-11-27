@@ -1,6 +1,8 @@
 package console
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/fatih/color"
 	"github.com/longyuan/domain.v3/client"
 	"math"
@@ -87,61 +89,150 @@ func (domain *DomainScan) whoisDaysContext() string {
 	}
 }
 
-func Scan(path string) error {
+func Scan(path string, deadline int, jsonFormat bool) error {
 	file, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
 	var rows = strings.Split(strings.ReplaceAll(string(file), "\r\n", "\n"), "\n")
-	color.Green("Scan Domain ....")
+	if !jsonFormat {
+		color.Green("Scan Domain ....")
+	}
 	var domain = client.Analysis(client.ParseDomains(rows))
 	if err != nil {
 		return err
 	}
-	var table [][]string
-	for index, item := range domain {
-		if item.Message != nil {
-			table = append(table, []string{
-				strconv.Itoa(index + 1), item.Name,
-				"",
-				"",
-				"0", *item.Message,
-			})
-		} else {
-			day, _, _ := item.Whois.RegistryExpiryDateParse()
-			table = append(table, []string{
-				strconv.Itoa(index + 1), item.Name,
-				item.Whois.CreationDate.Format("2006-01-02"),
-				item.Whois.RegistryExpiryDate.Format("2006-01-02"),
-				strconv.Itoa(day), "",
-			})
+	if jsonFormat {
+		var domainErrorCount = 0
+		var domainWarnCount = 0
+		var domainSuccessCount = 0
+		var domainMap []map[string]string
+		for index, item := range domain {
+			domainItem := make(map[string]string)
+			if item.Message != nil {
+				domainItem["Index"] = strconv.Itoa(index + 1)
+				domainItem["Name"] = item.Name
+				domainItem["CreateTime"] = ""
+				domainItem["ExpiryTime"] = ""
+				domainItem["AvailableDays"] = ""
+				domainItem["Message"] = *item.Message
+				domainErrorCount++
+			} else {
+				day, _, _ := item.Whois.RegistryExpiryDateParse()
+				domainItem["Index"] = strconv.Itoa(index + 1)
+				domainItem["Name"] = item.Name
+				domainItem["CreateTime"] = item.Whois.CreationDate.Format("2006-01-02")
+				domainItem["ExpiryTime"] = item.Whois.RegistryExpiryDate.Format("2006-01-02")
+				domainItem["AvailableDays"] = strconv.Itoa(day)
+				domainItem["Message"] = ""
+				if day <= deadline {
+					domainWarnCount++
+				} else {
+					domainSuccessCount++
+				}
+			}
+			domainMap = append(domainMap, domainItem)
 		}
-	}
-	PrintTable([]string{"序号", "域名", "Whois 创建日期", "Whois 过期日期", "Whois 剩余天数", "错误消息"}, table)
 
-	table = [][]string{}
-	var sslIndex = 0
-	for _, item := range domain {
-		for _, child := range *item.Child {
-			if child.Message != nil {
+		var errorCount = 0
+		var warnCount = 0
+		var successCount = 0
+		var sslMap []map[string]string
+		var sslIndex = 0
+		for _, item := range domain {
+			for _, child := range *item.Child {
+				sslItem := make(map[string]string)
+				if child.Message != nil {
+					sslItem["Index"] = strconv.Itoa(sslIndex + 1)
+					sslItem["Name"] = child.Name
+					sslItem["CreateTime"] = ""
+					sslItem["ExpiryTime"] = ""
+					sslItem["AvailableDays"] = ""
+					sslItem["Message"] = *child.Message
+					errorCount++
+				} else {
+					day, _, _ := child.SSL.NotAfterDateParse()
+					sslItem["Index"] = strconv.Itoa(sslIndex + 1)
+					sslItem["Name"] = child.Name
+					sslItem["CreateTime"] = child.SSL.NotBefore.Format("2006-01-02")
+					sslItem["ExpiryTime"] = child.SSL.NotAfter.Format("2006-01-02")
+					sslItem["AvailableDays"] = strconv.Itoa(day)
+					sslItem["Message"] = ""
+					if day <= deadline {
+						warnCount++
+					} else {
+						successCount++
+					}
+				}
+				sslMap = append(sslMap, sslItem)
+				sslIndex += 1
+			}
+		}
+
+		result := make(map[string]any)
+		result["SSL"] = sslMap
+		result["Domain"] = domainMap
+
+		result["DomainTotal"] = len(domain)
+		result["DomainError"] = domainErrorCount
+		result["DomainWarn"] = domainWarnCount
+		result["DomainSuccess"] = domainSuccessCount
+
+		result["SSLTotal"] = len(sslMap)
+		result["SSLError"] = errorCount
+		result["SSLWarn"] = warnCount
+		result["SSLSuccess"] = successCount
+		var jsonData []byte
+		jsonData, err = json.Marshal(result)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(jsonData))
+	} else {
+		var table [][]string
+		for index, item := range domain {
+			if item.Message != nil {
 				table = append(table, []string{
-					strconv.Itoa(sslIndex + 1), child.Name,
-					"", "", "0", *child.Message,
+					strconv.Itoa(index + 1), item.Name,
+					"",
+					"",
+					"0", *item.Message,
 				})
 			} else {
-				day, _, _ := child.SSL.NotAfterDateParse()
+				day, _, _ := item.Whois.RegistryExpiryDateParse()
 				table = append(table, []string{
-					strconv.Itoa(sslIndex + 1), child.Name,
-					child.SSL.NotBefore.Format("2006-01-02"),
-					child.SSL.NotAfter.Format("2006-01-02"),
+					strconv.Itoa(index + 1), item.Name,
+					item.Whois.CreationDate.Format("2006-01-02"),
+					item.Whois.RegistryExpiryDate.Format("2006-01-02"),
 					strconv.Itoa(day), "",
 				})
 			}
-			sslIndex += 1
 		}
-	}
-	PrintTable([]string{"序号", "域名", "SSL 创建日期", "SSL 过期日期", "SSL 剩余天数", "错误消息"}, table)
+		PrintTable([]string{"序号", "域名", "Whois 创建日期", "Whois 过期日期", "Whois 剩余天数", "错误消息"}, table)
 
+		table = [][]string{}
+		var sslIndex = 0
+		for _, item := range domain {
+			for _, child := range *item.Child {
+				if child.Message != nil {
+					table = append(table, []string{
+						strconv.Itoa(sslIndex + 1), child.Name,
+						"", "", "0", *child.Message,
+					})
+				} else {
+					day, _, _ := child.SSL.NotAfterDateParse()
+					table = append(table, []string{
+						strconv.Itoa(sslIndex + 1), child.Name,
+						child.SSL.NotBefore.Format("2006-01-02"),
+						child.SSL.NotAfter.Format("2006-01-02"),
+						strconv.Itoa(day), "",
+					})
+				}
+				sslIndex += 1
+			}
+		}
+		PrintTable([]string{"序号", "域名", "SSL 创建日期", "SSL 过期日期", "SSL 剩余天数", "错误消息"}, table)
+	}
 	return nil
 }
 

@@ -9,16 +9,11 @@ import (
 )
 
 func Test1(test *testing.T) {
-	ssl, err := client.SSL("www.jd.com:6443")
+	ssl, err := client.SSL("www.jd.com")
 	if err != nil {
 		return
 	}
-	fmt.Println(ssl)
-	info, err := client.IpInfo("124.222.4.134")
-	if err != nil {
-		return
-	}
-	fmt.Println(info)
+	fmt.Println(ssl.DNSNames)
 }
 
 func Test2(test *testing.T) {
