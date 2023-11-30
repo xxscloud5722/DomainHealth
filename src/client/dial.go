@@ -21,7 +21,15 @@ type X509Certificate struct {
 
 // SSL 域名证书状态查询.
 func SSL(host string) (*X509Certificate, error) {
-	value, err := url.Parse("scheme://" + host)
+	var value *url.URL
+	var err error
+	for i := 0; i < 5; i++ {
+		value, err = url.Parse("scheme://" + host)
+		if err != nil {
+			continue
+		}
+		break
+	}
 	if err != nil {
 		return nil, err
 	}
