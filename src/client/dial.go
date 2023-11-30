@@ -21,20 +21,19 @@ type X509Certificate struct {
 
 // SSL 域名证书状态查询.
 func SSL(host string) (*X509Certificate, error) {
-	var value *url.URL
-	var err error
-	for i := 0; i < 5; i++ {
-		value, err = url.Parse("scheme://" + host)
+	value, err := url.Parse("scheme://" + host)
+	if err != nil {
+		return nil, err
+	}
+	host = fmt.Sprintf("%s:%s", value.Hostname(), lo.If(value.Port() == "", "443").Else(value.Port()))
+	var dial *tls.Conn
+	for i := 0; i < 4; i++ {
+		dial, err = tls.Dial("tcp", host, nil)
 		if err != nil {
 			continue
 		}
 		break
 	}
-	if err != nil {
-		return nil, err
-	}
-	host = fmt.Sprintf("%s:%s", value.Hostname(), lo.If(value.Port() == "", "443").Else(value.Port()))
-	dial, err := tls.Dial("tcp", host, nil)
 	if err != nil {
 		return nil, err
 	}
