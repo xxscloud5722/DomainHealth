@@ -164,6 +164,7 @@ type DomainWhois struct {
 	DNSSEC                     string
 }
 
+// Println 打印域名信息.
 func (whois *DomainWhois) Println() {
 	titleColor := color.New(color.FgWhite)
 	titleColor = titleColor.Add(color.Bold)
@@ -329,6 +330,7 @@ func Whois(domain Domain) ([]string, error) {
 	return rows, nil
 }
 
+// isRetry 是否需要重试.
 func isRetry(message string) bool {
 	return strings.HasPrefix(message, "Queried interval is too short")
 }
