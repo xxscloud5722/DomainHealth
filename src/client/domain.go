@@ -2,6 +2,7 @@ package client
 
 import (
 	"errors"
+	"github.com/fatih/color"
 	"github.com/samber/lo"
 	"strings"
 )
@@ -69,8 +70,12 @@ func ParseDomains(rows []string) []*Domain {
 	return domains
 }
 
-func Analysis(domains []*Domain) []*Domain {
+func Analysis(domains []*Domain, jsonFormat bool) []*Domain {
 	for _, domain := range domains {
+		if !jsonFormat {
+			color.Blue("[Domain] Whois: " + domain.Name + " ...")
+		}
+
 		// Whois 解析
 		whoisRows, err := Whois(*domain)
 		if err != nil {
@@ -85,6 +90,9 @@ func Analysis(domains []*Domain) []*Domain {
 		}
 
 		for _, child := range *domain.Child {
+			if !jsonFormat {
+				color.Blue("[Domain] SSL: " + child.Name)
+			}
 			// SSL
 			ssl, err := SSL(child.Name)
 			if err != nil {

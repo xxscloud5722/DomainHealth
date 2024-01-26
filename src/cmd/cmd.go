@@ -53,7 +53,7 @@ func Cmd() []*cobra.Command {
 		Short:   "Scan Config",
 		Example: "scan ./domain.txt",
 		Run: func(cmd *cobra.Command, args []string) {
-			jsonFormat, err := cmd.Flags().GetString("json")
+			jsonFormat, err := cmd.Flags().GetBool("json")
 			if err != nil {
 				color.Red(fmt.Sprint(err))
 				os.Exit(1)
@@ -75,7 +75,7 @@ func Cmd() []*cobra.Command {
 				os.Exit(1)
 				return
 			}
-			err = console.Scan(args[0], deadline, jsonFormat != "false")
+			err = console.Scan(args[0], deadline, jsonFormat)
 			if err != nil {
 				color.Red(fmt.Sprint(err))
 				os.Exit(1)
@@ -83,7 +83,7 @@ func Cmd() []*cobra.Command {
 			}
 		},
 	}
-	scanCmd.Flags().String("json", "false", "JSON formatting")
+	scanCmd.Flags().Bool("json", false, "JSON formatting")
 	scanCmd.Flags().StringP("deadline", "d", "30", "original information")
 
 	return []*cobra.Command{

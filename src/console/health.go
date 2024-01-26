@@ -98,7 +98,7 @@ func Scan(path string, deadline int, jsonFormat bool) error {
 	if !jsonFormat {
 		color.Green("Scan Domain ....")
 	}
-	var domain = client.Analysis(client.ParseDomains(rows))
+	var domain = client.Analysis(client.ParseDomains(rows), jsonFormat)
 	if err != nil {
 		return err
 	}
@@ -234,17 +234,4 @@ func Scan(path string, deadline int, jsonFormat bool) error {
 		PrintTable([]string{"序号", "域名", "SSL 创建日期", "SSL 过期日期", "SSL 剩余天数", "错误消息"}, table)
 	}
 	return nil
-}
-
-func DomainTemplateCPWeChat(value string) string {
-	if strings.Index(value, "查询失败") > -1 {
-		return "> <font color=\"red\">" + value + "</font>\n"
-	}
-	if strings.Index(value, "已过期") > -1 {
-		return "> <font color=\"red\">" + value + "</font>\n"
-	}
-	if strings.Index(value, "即将过期") > -1 {
-		return "> <font color=\"warning\">" + value + "</font>\n"
-	}
-	return "> " + value + "\n"
 }

@@ -28,15 +28,15 @@ func SSL(host string) (*X509Certificate, error) {
 	host = fmt.Sprintf("%s:%s", value.Hostname(), lo.If(value.Port() == "", "443").Else(value.Port()))
 	var dial *tls.Conn
 	// 执行4次, 避免网络连接异常
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 8; i++ {
 		dial, err = tls.Dial("tcp", host, nil)
 		if err != nil {
+			time.Sleep(time.Second * time.Duration(lo.If(i%2 == 0, 1).Else(2)))
 			continue
 		}
-		time.Sleep(time.Second / 2)
 		break
 	}
-	if err != nil {
+	if dial == nil || err != nil {
 		return nil, err
 	}
 	defer func(dial *tls.Conn) {

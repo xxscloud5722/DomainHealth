@@ -267,32 +267,29 @@ func Whois(domain Domain) ([]string, error) {
 		return nil, err
 	}
 	var conn net.Conn
-	conn, err = net.Dial("tcp", *server+":43")
-	if err != nil {
-		time.Sleep(time.Second / 4)
+	for i := 0; i < 10; i++ {
 		conn, err = net.Dial("tcp", *server+":43")
 		if err != nil {
-			time.Sleep(time.Second / 4)
-			conn, err = net.Dial("tcp", *server+":43")
-			if err != nil {
-				return nil, err
-			}
+			time.Sleep(time.Second * time.Duration(lo.If(i%2 == 0, 1).Else(2)))
+			continue
 		}
+		time.Sleep(time.Second / 2)
+		break
+	}
+	if conn == nil {
+		return nil, fmt.Errorf(*server + " connect failed : " + host)
 	}
 	defer func(dial net.Conn) {
-		err := dial.Close()
-		if err != nil {
-			panic(err)
-		}
+		_ = dial.Close()
 	}(conn)
 
 	// Send the domain name query
 	_, err = fmt.Fprintf(conn, "%s\r\n", host)
 	if err != nil {
-		time.Sleep(time.Second / 4)
+		time.Sleep(time.Second)
 		_, err = fmt.Fprintf(conn, "%s\r\n", host)
 		if err != nil {
-			time.Sleep(time.Second / 4)
+			time.Sleep(time.Second * 3)
 			_, err = fmt.Fprintf(conn, "%s\r\n", host)
 			if err != nil {
 				return nil, err
@@ -312,7 +309,7 @@ func Whois(domain Domain) ([]string, error) {
 			rows = append(rows, line)
 		}
 		if err = scanner.Err(); err != nil {
-			time.Sleep(time.Second / 4)
+			time.Sleep(time.Second)
 			continue
 		}
 		break
